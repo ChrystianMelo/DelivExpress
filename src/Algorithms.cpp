@@ -1,241 +1,193 @@
 #include <cassert>
-#include <limits> 
+#include <unordered_set>
+#include <limits>
+#include <utility>
 
 #include "Algorithms.h"
 
-using GraphNodeHash = GraphNode::GraphNodeHash;
-using GraphNodeEqual = GraphNode::GraphNodeEqual;
-
 namespace {
-	/**
-	 * \brief
-	 */
-	class NullNodeVisitor : public NodeVisitor {
-	public:
-		void visit(GraphNode* node) override {
-		}
-	};
 
 	/**
-	 * \brief
+	 * \brief Retorna a distância (peso) de `a` para `b`, ou INT_MAX se não houver conexão direta.
 	 */
-	class SCCNodeVisitor : public NodeVisitor {
-	public:
-		SCCNodeVisitor()
-			: m_sccs(), scc_(), prevNode_(nullptr) {}
-
-		void visit(GraphNode* node) override {
-			if (prevNode_ != nullptr && !prevNode_->isConnected(node)) {
-				m_sccs.push_back(scc_);
-				scc_ = SCC();
-			}
-			scc_.push_back(*node);
-			prevNode_ = node;
-		}
-
-		void finalize() {
-			if (!scc_.empty()) {
-				m_sccs.push_back(scc_);
+	int getDistance(City& a, City& b) {
+		for (const Road& road : a.getEdges()) {
+			if (*road.getTarget() == b) {
+				return road.getWeight();
 			}
 		}
-
-		std::vector<SCC> getSCCS() { return m_sccs; };
-	private:
-		std::vector<SCC> m_sccs;
-		SCC scc_;                 // SCC atual sendo construído
-		GraphNode* prevNode_;     // Último nó visitado
-	};
-
-
-	/**
-	 * \brief Metodo auxiliar
-	 *
-	 * \see Algorithms::dfs()
-	 */
-	static void dfs_visit(GraphNode* node, std::size_t* time,
-		std::unordered_map<GraphNode*, GraphNodeColor, GraphNodeHash, GraphNodeEqual>* coloring,
-		std::unordered_map<GraphNode*, DiscoveryTime, GraphNodeHash, GraphNodeEqual>* start,
-		std::unordered_map<GraphNode*, FinishingTime, GraphNodeHash, GraphNodeEqual>* finish,
-		NodeVisitor* nodeVisitor) {
-		(*time)++;
-		(*start)[node] = *time;
-		(*coloring)[node] = GraphNodeColor::DISCOVERED;
-
-		nodeVisitor->visit(node);
-
-		for (GraphEdge& edge : node->getEdges())
-			if (GraphNode* target = edge.getTarget(); (*coloring)[target] == GraphNodeColor::UNDISCOVERED)
-				dfs_visit(target, time, coloring, start, finish, nodeVisitor);
-
-		(*coloring)[node] = GraphNodeColor::FINISHED;
-		(*time)++;
-		(*finish)[node] = *time;
+		return INT_MAX;
 	}
 
 	/**
-	* \brief
-	*/
-	std::vector<GraphNode> sortNodesByFinishingTime(
-		std::vector<GraphNode>& nodes,
-		std::unordered_map<GraphNode*, FinishingTime, GraphNodeHash, GraphNodeEqual>& finishingTime) {
-		std::vector<GraphNode*> nodePointers;
-		for (auto& node : nodes) {
-			nodePointers.push_back(&node);
+	 * @brief Função recursiva de Backtracking que testa todas as ordens de visita.
+	 */
+	void backtrack(
+		const std::vector<City*>& nodes,
+		City* start,
+		City* current,
+		long long costSoFar,
+		int visitedCount,
+		std::vector<bool>& visited,
+		std::vector<City*>& path,
+		long long& bestCost,
+		std::vector<City*>& bestPath
+	) {
+		int V = static_cast<int>(nodes.size());
+
+		if (visitedCount == V) {
+			int w = getDistance(*current, *start);
+			if (w != INT_MAX) {
+				long long totalCost = costSoFar + w;
+				if (totalCost < bestCost) {
+					bestCost = totalCost;
+					bestPath = path;
+				}
+			}
+			return;
 		}
 
-		std::size_t n = nodePointers.size();
-		for (std::size_t i = 0; i < n - 1; ++i) {
-			for (std::size_t j = 0; j < n - i - 1; ++j) {
-				if (finishingTime[nodePointers[j]] < finishingTime[nodePointers[j + 1]]) {
-					std::swap(nodePointers[j], nodePointers[j + 1]);
+		for (int i = 0; i < V; i++) {
+			if (!visited[i]) {
+				int w = getDistance(*current, *nodes[i]);
+				if (w != INT_MAX) {
+					visited[i] = true;
+					path.push_back(nodes[i]);
+
+					backtrack(nodes, start, nodes[i], costSoFar + w,
+						visitedCount + 1, visited, path,
+						bestCost, bestPath);
+
+					path.pop_back();
+					visited[i] = false;
 				}
 			}
 		}
-
-		std::vector<GraphNode> nodes2;
-		for (auto node : nodePointers) {
-			nodes2.push_back(*node);
-		}
-
-		return nodes2;
-	}
-}
-
-void Algorithms::GaleShapley(const std::vector<Requester*>& Requesters) {
-	assert(!Requesters.empty());
-
-	std::size_t index = 0;
-
-	for (Requester* requester = Requesters.at(index); requester != nullptr;) {
-		Receiver* receiver = requester->getTopPriorityReceiver();
-
-		if (Requester* matchedRequester = receiver->getRequester(); matchedRequester == nullptr) {
-			requester->match(receiver);
-
-			// Se o Requester da vez for o Requester correspondente ao index então continua a incrementação do index. 
-			// Caso contrario, algum par foi quebrado e Requester da vez foi divorciado.
-			if (index < Requesters.size() && requester == Requesters.at(index))
-				index++;
-
-			requester = (index < Requesters.size()) ? Requesters.at(index) : nullptr;
-		}
-		else {
-			if (receiver->isBetterMatch(*requester)) {
-				// Encerra o antigo match
-				receiver->setRequester(nullptr);
-				matchedRequester->setReceiver(nullptr);
-
-				requester->match(receiver);
-
-				requester = matchedRequester;
-				index++;
-			}
-			else {
-				// Remove o Receiver que negou o pedido da vez, pois uma proposta nunca é feita 2x.
-				requester->popTopPriorityReceiver();
-			}
-		}
-
-	}
-}
-
-DFS_DATA Algorithms::DFS(Graph* graph, NodeVisitor* nodeVisitor) {
-	return Algorithms::DFS(graph->getNodes(), nodeVisitor);
-}
-
-DFS_DATA Algorithms::DFS(std::vector<GraphNode>& visitingNodes, NodeVisitor* nodeVisitor) {
-	std::unordered_map<GraphNode*, GraphNodeColor, GraphNodeHash, GraphNodeEqual> coloring;
-	std::unordered_map<GraphNode*, DiscoveryTime, GraphNodeHash, GraphNodeEqual> start;
-	std::unordered_map<GraphNode*, FinishingTime, GraphNodeHash, GraphNodeEqual> finish;
-
-	for (GraphNode& node : visitingNodes) {
-		coloring[&node] = GraphNodeColor::UNDISCOVERED;
-		start[&node] = 0;
-		finish[&node] = 0;
 	}
 
-	std::size_t time = 0;
+} // namespace
 
-	for (GraphNode& node : visitingNodes)
-		if (coloring[&node] == GraphNodeColor::UNDISCOVERED)
-			dfs_visit(&node, &time, &coloring, &start, &finish, nodeVisitor);
+std::pair<long long, std::vector<City*>> Algorithms::bruteForce(Graph& graph) {
+	auto& cityList = graph.getNodes();
+	std::vector<City*> nodes;
+	nodes.reserve(cityList.size());
+	for (auto& c : cityList) {
+		nodes.push_back(&c);
+	}
 
-	return std::make_tuple(coloring, start, finish);;
+	long long bestCost = std::numeric_limits<long long>::max();
+	std::vector<City*> bestPath;
+
+	int V = static_cast<int>(nodes.size());
+	for (int startIndex = 0; startIndex < V; startIndex++) {
+		std::vector<bool> visited(V, false);
+		visited[startIndex] = true;
+
+		std::vector<City*> path;
+		path.push_back(nodes[startIndex]);
+
+		backtrack(nodes, nodes[startIndex], nodes[startIndex], 0LL,
+			1, visited, path, bestCost, bestPath);
+	}
+
+	return std::make_pair(bestCost, bestPath);
 }
 
-void Algorithms::transposeGraph(Graph& graph) {
-	std::unordered_map<std::size_t, std::vector<GraphNode*>> invertedEdges;
+std::pair<long long, std::vector<City*>> Algorithms::dynamicProgramming(Graph& graph) {
+	auto& cityList = graph.getNodes();
+	const int n = static_cast<int>(cityList.size());
+	if (n == 0) {
+		return { 0LL, {} };
+	}
 
-	for (auto& node : graph.getNodes()) {
-		for (const auto& edge : node.getEdges()) {
-			invertedEdges[edge.getTarget()->getIndex()].push_back(&node);
+	std::vector<City*> nodes(n);
+	for (int i = 0; i < n; i++) {
+		nodes[i] = &cityList[i];
+	}
+
+	std::vector<std::vector<int>> dist(n, std::vector<int>(n, INT_MAX));
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			dist[i][j] = (i == j) ? 0 : getDistance(*nodes[i], *nodes[j]);
 		}
 	}
 
-	for (auto& node : graph.getNodes()) {
-		node.setEdges({});
-	}
+	long long bestCostGlobal = std::numeric_limits<long long>::max();
+	std::vector<City*> bestPathGlobal;
 
-	for (auto& node : graph.getNodes()) {
-		for (GraphNode* sourceNode : invertedEdges[node.getIndex()]) {
-			node.connect(sourceNode);
+	std::vector<std::vector<long long>> dp(1ULL << n, std::vector<long long>(n, LLONG_MAX));
+	std::vector<std::vector<int>> parent(1ULL << n, std::vector<int>(n, -1));
+
+	for (int start = 0; start < n; start++) {
+		for (unsigned long long mask = 0; mask < (1ULL << n); mask++) {
+			std::fill(dp[mask].begin(), dp[mask].end(), LLONG_MAX);
+			std::fill(parent[mask].begin(), parent[mask].end(), -1);
 		}
-	}
-}
 
-
-std::vector<SCC> Algorithms::Kosaraju(Graph* graph) {
-	NullNodeVisitor nullVisitor = NullNodeVisitor();
-	DFS_DATA data = Algorithms::DFS(graph, &nullVisitor);
-	auto& finishingTime = std::get<2>(data);
-
-	Algorithms::transposeGraph(*graph);
-
-	std::vector<GraphNode> nodes2 = sortNodesByFinishingTime(graph->getNodes(), finishingTime);
-
-	SCCNodeVisitor visitor = SCCNodeVisitor();
-	Algorithms::DFS(nodes2, &visitor);
-	visitor.finalize();
-
-	Algorithms::transposeGraph(*graph);
-
-	return visitor.getSCCS();
-}
-
-std::unordered_map<GraphNode*, int, GraphNodeHash, GraphNodeEqual> Algorithms::Dijkstra(Graph* graph, GraphNode& source) {
-	// Define a distância inicial como infinito
-	std::unordered_map<GraphNode*, int, GraphNodeHash, GraphNodeEqual> distances;
-	for (GraphNode& node : graph->getNodes()) {
-		distances[&node] = std::numeric_limits<int>::max();
-	}
-	distances[&source] = 0;
-
-	// Fila de prioridade para selecionar o nodo com a menor distância
-	using NodeDistPair = std::pair<int, GraphNode*>;
-	std::priority_queue<NodeDistPair, std::vector<NodeDistPair>, std::greater<NodeDistPair>> queue;
-	queue.push({ 0, &source });
-
-	while (!queue.empty()) {
-		int distance = queue.top().first;
-		GraphNode* current = queue.top().second;
-		queue.pop();
-
-		// Ignorar se a distância é maior do que a registrada
-		int curretDistance = distances[current];
-		if (distance > curretDistance) continue;
-
-		// Verificar vizinhos
-		for (const GraphEdge& edge : current->getEdges()) {
-			GraphNode* neighbor = edge.getTarget();
-			int newDist = distances[current] + edge.getWeight();
-
-			// Atualizar a distância se o caminho atual é mais curto
-			if (newDist < distances[neighbor]) {
-				distances[neighbor] = newDist;
-				queue.push({ newDist, neighbor });
+		dp[1ULL << start][start] = 0LL;
+		for (unsigned long long mask = 0; mask < (1ULL << n); mask++) {
+			for (int last = 0; last < n; last++) {
+				if (dp[mask][last] == LLONG_MAX) continue;
+				for (int next = 0; next < n; next++) {
+					if (next == last || (mask & (1ULL << next)) != 0) continue;
+					int w = dist[last][next];
+					if (w == INT_MAX) continue;
+					unsigned long long newMask = mask | (1ULL << next);
+					long long newCost = dp[mask][last] + w;
+					if (newCost < dp[newMask][next]) {
+						dp[newMask][next] = newCost;
+						parent[newMask][next] = last;
+					}
+				}
 			}
 		}
 	}
 
-	return distances;
+	return { bestCostGlobal, bestPathGlobal };
+}
+
+std::pair<long long, std::vector<City*>> Algorithms::greedy(Graph& graph) {
+	auto& cityList = graph.getNodes();
+	int n = static_cast<int>(cityList.size());
+	if (n == 0) {
+		return { 0LL, {} };
+	}
+
+	std::vector<City*> nodes(n);
+	for (int i = 0; i < n; i++) {
+		nodes[i] = &cityList[i];
+	}
+
+	long long bestCostGlobal = std::numeric_limits<long long>::max();
+	std::vector<City*> bestPathGlobal;
+
+	for (int startIndex = 0; startIndex < n; startIndex++) {
+		std::vector<bool> visited(n, false);
+		visited[startIndex] = true;
+		std::vector<City*> path;
+		path.push_back(nodes[startIndex]);
+
+		long long costSoFar = 0LL;
+		int currentIndex = startIndex;
+
+		for (int step = 1; step < n; step++) {
+			int bestNext = -1, bestDist = INT_MAX;
+			for (int candidate = 0; candidate < n; candidate++) {
+				if (!visited[candidate]) {
+					int d = getDistance(*nodes[currentIndex], *nodes[candidate]);
+					if (d < bestDist) {
+						bestDist = d;
+						bestNext = candidate;
+					}
+				}
+			}
+			if (bestNext == -1 || bestDist == INT_MAX) break;
+			visited[bestNext] = true;
+			costSoFar += bestDist;
+			currentIndex = bestNext;
+			path.push_back(nodes[bestNext]);
+		}
+	}
+
+	return { bestCostGlobal, bestPathGlobal };
 }

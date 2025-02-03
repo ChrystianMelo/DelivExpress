@@ -1,53 +1,55 @@
-#ifndef GRAPH_H
-#define GRAPH_H
+#ifndef Archadian_H
+#define Archadian_H
 
 #include <vector>
-#include "GraphNode.h"
+
+#include "City.h"
 
 /**
- * \class Graph
- * \brief Representa um grafo contendo múltiplos nós (GraphNodes).
+ * \class Archadian
+ * \brief Representa um grafo contendo múltiplos nós (Citys).
  *
- * Esta classe contém uma coleção de nós (GraphNodes) que representam os vértices
- * do grafo. A classe também oferece métodos para acessar e gerenciar esses nós.
+ * Esta classe encapsula um grafo, onde os nós representam cidades (Citys)
+ * e as arestas representam conexões entre elas. Também fornece métodos para
+ * realizar cálculos relacionados a capital, batalhões e patrulhamento no grafo.
  */
 class Graph {
 public:
 	/**
-	 * \brief Construtor padrão da classe Graph.
+	 * \brief Construtor padrão da classe Archadian.
 	 *
 	 * Inicializa um grafo vazio sem nenhum nó. Este construtor cria uma instância
-	 * de 'Graph' sem nós ou arestas, ideal para ser preenchido posteriormente.
+	 * de 'Archadian' sem nós ou arestas, ideal para ser preenchido posteriormente.
 	 */
-	Graph() {}
+	Graph();
 
 	/**
-	 * \brief Construtor da classe Graph com um conjunto de nós.
+	 * \brief Construtor da classe Archadian com um conjunto de nós.
 	 *
-	 * \param nodes Vetor contendo os nós (GraphNodes) que farão parte do grafo.
+	 * \param nodes Vetor contendo os nós (Citys) que farão parte do grafo.
 	 *
 	 * Este construtor inicializa o grafo com um vetor de nós fornecido. Ele permite
 	 * a criação de um grafo já populado com nós.
 	 */
-	Graph(const std::vector<GraphNode>& nodes) : m_nodes(nodes) {}
+	Graph(const std::vector<City>& nodes);
 
 	/**
 	 * \brief Obtém os nós do grafo.
-	 * \return Referência ao vetor de GraphNodes presentes no grafo.
+	 * \return Referência ao vetor de Citys presentes no grafo.
 	 *
 	 * Este método retorna todos os nós armazenados no grafo. Pode ser usado para
 	 * manipular ou acessar os nós do grafo.
 	 */
-	std::vector<GraphNode>& getNodes();
+	std::vector<City>& getNodes();
 
-protected:
+private:
 	/**
-	 * \brief Armazena os nós (GraphNodes) do grafo.
+	 * \brief Armazena os nós (Citys) do grafo.
 	 *
-	 * Um vetor que contém todos os nós (GraphNodes) presentes no grafo. Cada nó
-	 * pode estar conectado a outros nós através de arestas (GraphEdges).
+	 * Um vetor que contém todos os nós (Citys) presentes no grafo. Cada nó
+	 * pode estar conectado a outros nós através de arestas (Roads).
 	 */
-	std::vector<GraphNode> m_nodes;
+	std::vector<City> m_nodes;
 };
 
-#endif // GRAPH_H
+#endif // Archadian_H

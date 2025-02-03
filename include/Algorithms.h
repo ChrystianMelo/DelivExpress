@@ -6,30 +6,7 @@
 #include <queue>
 #include <unordered_map>
 
-
 #include "Graph.h"
-#include "Requester.h"
-#include "Receiver.h"
-
-enum GraphNodeColor {
-	// Não foi descobreto.
-	UNDISCOVERED,
-	// Descoberto mas não finalizado.
-	DISCOVERED,
-	// Finalizado.
-	FINISHED
-};
-
-
-using GraphNodeHash = GraphNode::GraphNodeHash;
-using GraphNodeEqual = GraphNode::GraphNodeEqual;
-using DiscoveryTime = std::size_t;
-using FinishingTime = std::size_t;
-using DFS_DATA = std::tuple<
-	std::unordered_map<GraphNode*, GraphNodeColor, GraphNodeHash, GraphNodeEqual>,
-	std::unordered_map<GraphNode*, DiscoveryTime, GraphNodeHash, GraphNodeEqual>,
-	std::unordered_map<GraphNode*, FinishingTime, GraphNodeHash, GraphNodeEqual>>;
-using SCC = std::vector<GraphNode>;
 
 /**
  * \class Algorithms
@@ -39,68 +16,54 @@ using SCC = std::vector<GraphNode>;
 class Algorithms {
 public:
 	/**
-	 * \brief Executa o algoritmo de casamento estável de Gale-Shapley.
+	 * @brief Resolve o Problema do Caixeiro Viajante (TSP) por força bruta.
 	 *
-	 * \details O algoritmo tenta encontrar um casamento estável entre Requesters (solicitantes) e Receivers (receptores)
-	 * baseando-se em listas de prioridade. Requesters fazem propostas para Receivers e os Receivers
-	 * aceitam ou rejeitam as propostas de acordo com suas preferências. O objetivo é garantir um casamento
-	 * estável, onde não existam dois elementos que prefiram um ao outro em detrimento de seus parceiros atuais.
+	 * Este método testa todas as permutações possíveis de cidades para encontrar a rota
+	 * de menor custo que passa por todas elas e retorna ao ponto de partida.
 	 *
-	 * \note Complexidade O(n^2), onde n é o número de Requesters (e o mesmo para os Receivers).
+	 * @param graph Referência para o objeto Graph contendo as cidades.
+	 * @return Um par (melhorCusto, melhorRota), onde:
+	 *         - melhorCusto é o menor custo necessário para visitar todas as cidades e retornar ao início.
+	 *         - melhorRota é a sequência de City* na ordem em que devem ser visitadas.
 	 *
-	 * \param men Vetor de Requesters (solicitantes) participantes no algoritmo.
+	 * @note Complexidade: O(n!) no pior caso, pois são consideradas todas as permutações possíveis das cidades.
 	 */
-	static void GaleShapley(const std::vector<Requester*>& men);
+	static std::pair<long long, std::vector<City*>> bruteForce(Graph& graph);
 
 	/**
-	 * \brief Realiza uma busca em profundidade (DFS) em um grafo.
+	 * @brief Resolve o Problema do Caixeiro Viajante (TSP) utilizando Programação Dinâmica (Held-Karp).
 	 *
-	 * Este método percorre o grafo começando de um nó e visita todos os nós conectados a ele de maneira recursiva,
-	 * utilizando o algoritmo de busca em profundidade (Depth-First Search, DFS).
+	 * Este método utiliza a abordagem de Programação Dinâmica para minimizar o custo de percorrer
+	 * todas as cidades e retornar ao ponto de partida.
 	 *
-	 * \param graph Um ponteiro para o objeto 'Graph' que contém os nós e arestas a serem percorridos.
-	 * \param visitedNode Um 'std::function' que será executado em cada nó visitado durante a busca.
-	 *                    A função aceita um ponteiro para 'GraphNode' como argumento, permitindo que o comportamento
-	 *                    durante a visita a cada nó seja personalizado.
+	 * @param graph Referência para o objeto Graph contendo as cidades.
+	 * @return Um par (melhorCusto, melhorRota), onde:
+	 *         - melhorCusto é o custo mínimo necessário para percorrer todas as cidades e retornar ao início.
+	 *         - melhorRota é a sequência de City* na ordem em que devem ser visitadas.
 	 *
-	 * \return *escrever aqui*
-	 *
-	 * \note Complexidade: O(V + E), onde V é o número de vértices (nós) e E é o número de arestas do grafo.
+	 * @note Complexidade: O(n² * 2^n), pois utiliza uma tabela de estados para armazenar os custos parciais
+	 *       das sub-rotas, reduzindo a redundância das computações.
 	 */
-	static DFS_DATA DFS(Graph* graph, NodeVisitor* nodeVisitor);
+	static std::pair<long long, std::vector<City*>> dynamicProgramming(Graph& graph);
 
 	/**
-	 * \brief Realiza uma busca em profundidade (DFS) em um grafo.
+	 * @brief Resolve o Problema do Caixeiro Viajante (TSP) utilizando um algoritmo guloso.
 	 *
-	 * Este método percorre o grafo começando de um nó e visita todos os nós conectados a ele de maneira recursiva,
-	 * utilizando o algoritmo de busca em profundidade (Depth-First Search, DFS).
+	 * O método emprega a estratégia do vizinho mais próximo (Nearest Neighbor),
+	 * sempre escolhendo a cidade acessível mais próxima como o próximo destino.
 	 *
-	 * \param graph Um ponteiro para o objeto 'Graph' que contém os nós e arestas a serem percorridos.
-	 * \param visitingNodes
-	 * \param nodeVisitor a função aceita um ponteiro para 'GraphNode' como argumento, permitindo que o comportamento
-	 *                    durante a visita a cada nó seja personalizado.
+	 * @param graph Referência para o objeto Graph contendo as cidades.
+	 * @return Um par (melhorCusto, melhorRota), onde:
+	 *         - melhorCusto é o custo total da rota encontrada.
+	 *         - melhorRota é a sequência de City* na ordem em que devem ser visitadas.
 	 *
-	 * \return *escrever aqui*
-	 *
-	 * \note Complexidade: O(V + E), onde V é o número de vértices (nós) e E é o número de arestas do grafo.
+	 * @note Complexidade: O(n³) no pior caso, pois para cada uma das n cidades possíveis como ponto de partida,
+	 *       o algoritmo constrói uma rota em O(n²) (selecionando o vizinho mais próximo a cada passo, exigindo
+	 *       uma busca linear entre as cidades não visitadas). Assim, totaliza-se O(n × n²) = O(n³).
 	 */
-	static DFS_DATA DFS(std::vector<GraphNode>& visitingNodes, NodeVisitor* nodeVisitor);
+	static std::pair<long long, std::vector<City*>> greedy(Graph& graph);
 
-	/**
-	 *
-	 */
 
-	static void transposeGraph(Graph& graph);
-
-	/**
-	 *
-	 */
-	static std::vector<SCC> Kosaraju(Graph* graph);
-
-	/**
-	 *
-	 */
-	static std::unordered_map<GraphNode*, int, GraphNodeHash, GraphNodeEqual> Dijkstra(Graph* graph, GraphNode& source);
 };
 
 #endif // ALGORITHMS_H
