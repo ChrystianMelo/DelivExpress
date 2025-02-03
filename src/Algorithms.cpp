@@ -2,6 +2,7 @@
 #include <unordered_set>
 #include <limits>
 #include <utility>
+#include <climits>
 
 #include "Algorithms.h"
 
