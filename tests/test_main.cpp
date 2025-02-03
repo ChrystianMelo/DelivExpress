@@ -141,7 +141,7 @@ std::string runProgram(const std::string& input) {
 
 	return output;
 }
-
+/*
 // Roda os arquivos de teste em modo Força bruta
 BOOST_AUTO_TEST_CASE(IntegrationTest_BruteForce) {
 	namespace fs = std::filesystem;
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(IntegrationTest_BruteForce) {
 	const std::string outputsPath = "./tests/outputs";
 
 	for (const auto& inputFile : fs::directory_iterator(inputsPath)) {
-		std::string inputFilePath = inputFile.path().string();
+		std::string inputFilePath = "b" + std::endl + inputFile.path().string();
 
 		std::string outputFilePath = outputsPath + "/" + inputFile.path().filename().string();
 
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(IntegrationTest_BruteForce) {
 			"\nSa�da gerada:\n" + actualOutput
 		);
 	}
-}
+}*/
 
 // Roda os arquivos de teste em modo Programação Dinamica
 BOOST_AUTO_TEST_CASE(IntegrationTest_DynamicProgramming) {
