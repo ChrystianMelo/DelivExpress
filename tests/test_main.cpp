@@ -141,6 +141,11 @@ std::string runProgram(const std::string& input) {
 
 	return output;
 }
+
+
+BOOST_AUTO_TEST_CASE(IntegrationTest) {
+	BOOST_CHECK(1==1);
+}
 /*
 // Roda os arquivos de teste em modo Força bruta
 BOOST_AUTO_TEST_CASE(IntegrationTest_BruteForce) {

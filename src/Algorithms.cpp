@@ -1,8 +1,8 @@
 #include <cassert>
 #include <unordered_set>
 #include <limits>
-#include <utility>
 #include <climits>
+#include <utility>
 
 #include "Algorithms.h"
 
@@ -66,7 +66,32 @@ namespace {
 		}
 	}
 
-} // namespace
+	std::vector<City*> buildPath(const std::vector<std::vector<int>>& parent,
+		unsigned long long mask,
+		int current,
+		const std::vector<City*>& nodes)
+	{
+		std::vector<int> order;
+		while (current != -1) {
+			order.push_back(current);
+			int prev = parent[mask][current];
+
+			mask &= ~(1ULL << current);
+			current = prev;
+		}
+
+		std::reverse(order.begin(), order.end());
+
+
+		std::vector<City*> path;
+		path.reserve(order.size());
+		for (int idx : order) {
+			path.push_back(nodes[idx]);
+		}
+		return path;
+	}
+
+}
 
 std::pair<long long, std::vector<City*>> Algorithms::bruteForce(Graph& graph) {
 	auto& cityList = graph.getNodes();
@@ -113,38 +138,63 @@ std::pair<long long, std::vector<City*>> Algorithms::dynamicProgramming(Graph& g
 		}
 	}
 
-	long long bestCostGlobal = std::numeric_limits<long long>::max();
-	std::vector<City*> bestPathGlobal;
-
+	int start = 0;
 	std::vector<std::vector<long long>> dp(1ULL << n, std::vector<long long>(n, LLONG_MAX));
 	std::vector<std::vector<int>> parent(1ULL << n, std::vector<int>(n, -1));
+	dp[1ULL << start][start] = 0LL;
 
-	for (int start = 0; start < n; start++) {
-		for (unsigned long long mask = 0; mask < (1ULL << n); mask++) {
-			std::fill(dp[mask].begin(), dp[mask].end(), LLONG_MAX);
-			std::fill(parent[mask].begin(), parent[mask].end(), -1);
-		}
+	for (unsigned long long mask = 0; mask < (1ULL << n); mask++) {
+		for (int last = 0; last < n; last++) {
+			long long costSoFar = dp[mask][last];
+			if (costSoFar == LLONG_MAX) continue;
 
-		dp[1ULL << start][start] = 0LL;
-		for (unsigned long long mask = 0; mask < (1ULL << n); mask++) {
-			for (int last = 0; last < n; last++) {
-				if (dp[mask][last] == LLONG_MAX) continue;
-				for (int next = 0; next < n; next++) {
-					if (next == last || (mask & (1ULL << next)) != 0) continue;
-					int w = dist[last][next];
-					if (w == INT_MAX) continue;
-					unsigned long long newMask = mask | (1ULL << next);
-					long long newCost = dp[mask][last] + w;
-					if (newCost < dp[newMask][next]) {
-						dp[newMask][next] = newCost;
-						parent[newMask][next] = last;
-					}
+			for (int next = 0; next < n; next++) {
+
+				if ((mask & (1ULL << next)) != 0 || next == last) {
+					continue;
+				}
+
+				int w = dist[last][next];
+				if (w == INT_MAX) {
+					continue;
+				}
+				unsigned long long newMask = mask | (1ULL << next);
+				long long newCost = costSoFar + w;
+				if (newCost < dp[newMask][next]) {
+					dp[newMask][next] = newCost;
+					parent[newMask][next] = last;
 				}
 			}
 		}
 	}
 
-	return { bestCostGlobal, bestPathGlobal };
+	long long bestCost = LLONG_MAX;
+	int bestEnd = -1;
+	unsigned long long fullMask = (1ULL << n) - 1;
+
+	for (int end = 0; end < n; end++) {
+
+		if (dp[fullMask][end] == LLONG_MAX) {
+			continue;
+		}
+
+		if (dist[end][start] == INT_MAX) {
+			continue;
+		}
+
+		long long totalCost = dp[fullMask][end] + dist[end][start];
+		if (totalCost < bestCost) {
+			bestCost = totalCost;
+			bestEnd = end;
+		}
+	}
+
+	std::vector<City*> bestPath;
+	if (bestEnd != -1) {
+		bestPath = buildPath(parent, fullMask, bestEnd, nodes);
+	}
+
+	return { bestCost, bestPath };
 }
 
 std::pair<long long, std::vector<City*>> Algorithms::greedy(Graph& graph) {
@@ -162,17 +212,23 @@ std::pair<long long, std::vector<City*>> Algorithms::greedy(Graph& graph) {
 	long long bestCostGlobal = std::numeric_limits<long long>::max();
 	std::vector<City*> bestPathGlobal;
 
+
 	for (int startIndex = 0; startIndex < n; startIndex++) {
 		std::vector<bool> visited(n, false);
 		visited[startIndex] = true;
+
 		std::vector<City*> path;
 		path.push_back(nodes[startIndex]);
 
 		long long costSoFar = 0LL;
 		int currentIndex = startIndex;
+		int visitedCount = 1;
 
-		for (int step = 1; step < n; step++) {
-			int bestNext = -1, bestDist = INT_MAX;
+
+		while (visitedCount < n) {
+			int bestNext = -1;
+			int bestDist = INT_MAX;
+
 			for (int candidate = 0; candidate < n; candidate++) {
 				if (!visited[candidate]) {
 					int d = getDistance(*nodes[currentIndex], *nodes[candidate]);
@@ -182,11 +238,34 @@ std::pair<long long, std::vector<City*>> Algorithms::greedy(Graph& graph) {
 					}
 				}
 			}
-			if (bestNext == -1 || bestDist == INT_MAX) break;
+
+			if (bestNext == -1 || bestDist == INT_MAX) {
+
+				costSoFar = std::numeric_limits<long long>::max();
+				break;
+			}
+
 			visited[bestNext] = true;
+			path.push_back(nodes[bestNext]);
 			costSoFar += bestDist;
 			currentIndex = bestNext;
-			path.push_back(nodes[bestNext]);
+			visitedCount++;
+		}
+
+		if (costSoFar != std::numeric_limits<long long>::max()) {
+
+			int distBack = getDistance(*nodes[currentIndex], *nodes[startIndex]);
+			if (distBack == INT_MAX) {
+				costSoFar = std::numeric_limits<long long>::max();
+			}
+			else {
+				costSoFar += distBack;
+			}
+		}
+
+		if (costSoFar < bestCostGlobal) {
+			bestCostGlobal = costSoFar;
+			bestPathGlobal = path;
 		}
 	}
 
