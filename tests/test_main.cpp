@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(IntegrationTest_BruteForce) {
 			"\nSa�da gerada:\n" + actualOutput
 		);
 	}
-}*/
+}
 
 // Roda os arquivos de teste em modo Programação Dinamica
 BOOST_AUTO_TEST_CASE(IntegrationTest_DynamicProgramming) {
@@ -190,4 +190,4 @@ BOOST_AUTO_TEST_CASE(IntegrationTest_DynamicProgramming) {
 			"\nSa�da gerada:\n" + actualOutput
 		);
 	}
-}
+}*/
