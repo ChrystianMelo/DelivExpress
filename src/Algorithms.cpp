@@ -73,15 +73,12 @@ namespace {
 	{
 		std::vector<int> order;
 		while (current != -1) {
-			order.push_back(current);
+			order.insert(order.begin(), current); // Inserir no começo para inverter a ordem
 			int prev = parent[mask][current];
 
 			mask &= ~(1ULL << current);
 			current = prev;
 		}
-
-		std::reverse(order.begin(), order.end());
-
 
 		std::vector<City*> path;
 		path.reserve(order.size());
@@ -90,6 +87,7 @@ namespace {
 		}
 		return path;
 	}
+
 
 }
 
